@@ -2,19 +2,36 @@ import threading
 import time
 
 
-def task(name):
+def taskA(name):
     for i in range(3):
-        print(f"[{name}] 做第 {i+1} 件事")
-        time.sleep(1)
+        print(f"[{name}] do {i+1} taskA")
+        time.sleep(0.5)
 
 
-# 建立兩條執行緒
-t1 = threading.Thread(target=task, args=("小夥伴A",))
-t2 = threading.Thread(target=task, args=("小夥伴B",))
+def taskB(name):
+    for i in range(3):
+        print(f"[{name}] do {i+1} taskB")
+        time.sleep(0.5)
 
-t1.start()  # 啟動第一條
-t1.join()  # 等 A 做完
 
-t2.start()  # 啟動第二條
-t2.join()  # 等 B 做完
-print("所有工作都做完囉！")
+def taskC(name):
+    for i in range(3):
+        print(f"[{name}] do {i+1} taskC")
+        time.sleep(0.5)
+
+
+t1 = threading.Thread(target=taskA, args=("threadA",))
+t2 = threading.Thread(target=taskB, args=("threadB",))
+t3 = threading.Thread(target=taskC, args=("threadC",))
+t1.start()
+t2.start()
+
+# wait for the first two threads to finish
+t1.join()
+t2.join()
+
+# start the third thread after the first two threads finish
+t3.start()
+t3.join()
+
+print("all tasks done")
