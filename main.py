@@ -29,7 +29,7 @@ def run_task(cmd: str) -> str:
 
 
 @app.post("/tasks/", status_code=202)
-def add_task(request: TaskRequest):
+def add_task(request: TaskRequest) -> dict:
     """
     add a task to the thread pool.
     """
@@ -40,7 +40,7 @@ def add_task(request: TaskRequest):
 
 
 @app.get("/tasks/{job_id}")
-def get_task_status(job_id: str):
+def get_task_status(job_id: str) -> dict:
     """
     get the status of a task.
     """
@@ -50,13 +50,20 @@ def get_task_status(job_id: str):
     return {
         "job_id": job_id,
         "done": future.done(),
-        "result": future.result() if future.done() else None,
+        "cmd_done": future.result() if future.done() else None,
     }
 
 
 @app.get("/tasks/")
-def list_jobs():
+def list_jobs() -> list[dict]:
     """
     list all jobs.
     """
-    return {"jobs": list(jobs.keys())}
+    return [
+        {
+            "job_id": job_id,
+            "done": future.done(),
+            "cmd_done": future.result() if future.done() else None,
+        }
+        for job_id, future in jobs.items()
+    ]
