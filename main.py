@@ -1,38 +1,62 @@
 import subprocess
 import time
+import uuid
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from typing import List
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+# FastAPI app
+app = FastAPI(title="Task Manager")
+# thread pool
+executor = ThreadPoolExecutor(max_workers=1)
+jobs: dict[str, Future] = {}
+
+
+# this is the request body for the POST /tasks endpoint
+class TaskRequest(BaseModel):
+    cmd: str
 
 
 def run_task(cmd: str) -> str:
     """
-    execute a single command. you can print the log you want here.
+    execute a single command.
     """
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ▶️ Running: {cmd}")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {cmd}")
     subprocess.run(cmd, shell=True)
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ✅ Finished: {cmd}")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {cmd}")
     return cmd
 
 
-def main():
-    # 1) task list
-    tasks = [
-        "python A.py",
-        "python A.py",
-        "python B.py",
-        "python B.py",
-    ]
-
-    # 2) create a thread pool
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        # submit() immediately put the task into the "invisible queue", and return a Future
-        futures: List[Future] = [executor.submit(run_task, cmd) for cmd in tasks]
-
-        # do something after each task is done
-        for future in as_completed(futures):
-            cmd_done = future.result()  # run_task returns the cmd
-            print(f"--> Task done: {cmd_done}")
+@app.post("/tasks/", status_code=202)
+def add_task(request: TaskRequest):
+    """
+    add a task to the thread pool.
+    """
+    job_id = str(uuid.uuid4())
+    future = executor.submit(run_task, request.cmd)
+    jobs[job_id] = future
+    return {"job_id": job_id, "cmd": request.cmd}
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/tasks/{job_id}")
+def get_task_status(job_id: str):
+    """
+    get the status of a task.
+    """
+    future = jobs.get(job_id)
+    if future is None:
+        return {"job_id": job_id, "done": False}
+    return {
+        "job_id": job_id,
+        "done": future.done(),
+        "result": future.result() if future.done() else None,
+    }
+
+
+@app.get("/tasks/")
+def list_jobs():
+    """
+    list all jobs.
+    """
+    return {"jobs": list(jobs.keys())}
