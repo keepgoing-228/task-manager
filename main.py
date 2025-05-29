@@ -1,45 +1,21 @@
-import queue
 import subprocess
-import threading
 import time
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from typing import List
 
-# create the lock
-task_lock = threading.Lock()
 
-
-def worker(queue: queue.Queue, worker_id: int):
-    while True:
-        cmd = queue.get()
-        if cmd is None:
-            queue.task_done()
-            break
-
-        # get the lock, ensure the command is executed synchronously
-        with task_lock:
-            try:
-                print(f"queue content: {queue.queue}")
-                print(
-                    f"{time.strftime('%Y-%m-%d %H:%M:%S')} Worker {worker_id} running command: {cmd}"
-                )
-                subprocess.run(cmd, shell=True)
-                print(
-                    f"{time.strftime('%Y-%m-%d %H:%M:%S')} Worker {worker_id} finished command: {cmd}"
-                )
-            except Exception as e:
-                print(f"Worker {worker_id} error running command: {e}")
-
-        queue.task_done()
+def run_task(cmd: str) -> str:
+    """
+    execute a single command. you can print the log you want here.
+    """
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ▶️ Running: {cmd}")
+    subprocess.run(cmd, shell=True)
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] ✅ Finished: {cmd}")
+    return cmd
 
 
 def main():
-    q = queue.Queue()
-
-    # create two worker threads
-    workers = []
-    for i in range(2):
-        t = threading.Thread(target=worker, args=(q, i + 1), daemon=True)
-        workers.append(t)
-
+    # 1) task list
     tasks = [
         "python A.py",
         "python A.py",
@@ -47,24 +23,15 @@ def main():
         "python B.py",
     ]
 
-    # add the tasks to the queue
-    for cmd in tasks:
-        q.put(cmd)
+    # 2) create a thread pool
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        # submit() immediately put the task into the "invisible queue", and return a Future
+        futures: List[Future] = [executor.submit(run_task, cmd) for cmd in tasks]
 
-    # start all worker threads
-    for t in workers:
-        t.start()
-
-    # wait for all tasks to finish
-    q.join()
-
-    # tell the worker threads to stop (each thread one None)
-    for _ in workers:
-        q.put(None)
-
-    # wait for all threads to finish
-    for t in workers:
-        t.join()
+        # do something after each task is done
+        for future in as_completed(futures):
+            cmd_done = future.result()  # run_task returns the cmd
+            print(f"--> Task done: {cmd_done}")
 
 
 if __name__ == "__main__":
