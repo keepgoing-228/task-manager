@@ -17,7 +17,7 @@ jobs: dict[str, Future] = {}  # job_id -> future
 
 # this is the request body for the POST /tasks endpoint
 class TaskRequest(BaseModel):
-    cmd: str
+    file_path: str
 
 
 class FileUploadResponse(BaseModel):
@@ -27,14 +27,14 @@ class FileUploadResponse(BaseModel):
     file_size: int
 
 
-def run_task(cmd: str) -> str:
+def run_task(file_path: str) -> str:
     """
     execute a single command.
     """
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {cmd}")
-    subprocess.run(cmd, shell=True)
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {cmd}")
-    return cmd
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path}")
+    subprocess.run(f"python read_txt.py {file_path}", shell=True)
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {file_path}")
+    return file_path
 
 
 @app.post("/tasks/upload", status_code=202)
@@ -69,9 +69,9 @@ def add_task(request: TaskRequest) -> dict:
     add a task to the thread pool.
     """
     job_id = str(uuid.uuid4())
-    future = executor.submit(run_task, request.cmd)
+    future = executor.submit(run_task, request.file_path)
     jobs[job_id] = future
-    return {"job_id": job_id, "cmd": request.cmd}
+    return {"job_id": job_id, "file_path": request.file_path}
 
 
 @app.get("/tasks/{job_id}")

@@ -1,1 +1,1 @@
-curl -X POST -F "file=@/home/tim/Downloads/faker.png" http://localhost:8000/tasks/upload
+curl -X POST -F "file=@/home/tim/Downloads/email_protocols_summary.txt" http://localhost:8000/tasks/upload
