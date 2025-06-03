@@ -39,6 +39,26 @@ def run_task(file_path: str) -> str:
     return file_path
 
 
+def check_task_status(job_id: str) -> str:
+    """
+    check the status of a task. Status can be:
+    - "pending": the task is pending
+    - "running": the task is running
+    - "done": the task is done
+    - "failed": the task failed
+    """
+    future = jobs.get(job_id)
+    if future.running():
+        return "running"
+    if future.done():
+        try:
+            future.result()
+            return "done"
+        except Exception as e:
+            return "failed"
+    return "pending"
+
+
 @app.post("/tasks/", status_code=202)
 def upload_and_run(file: UploadFile = File(...)) -> dict:
     """
@@ -77,13 +97,7 @@ def get_task_status(job_id: str) -> dict:
     """
     get the status of a task.
     """
-    future = jobs.get(job_id)
-    if future is None:
-        return {"job_id": job_id, "done": False}
-    return {
-        "job_id": job_id,
-        "done": future.done(),
-    }
+    return {"job_id": job_id, "status": check_task_status(job_id)}
 
 
 @app.get("/tasks/")
@@ -95,7 +109,7 @@ def list_jobs() -> dict:
         "jobs": [
             {
                 "job_id": job_id,
-                "done": future.done(),
+                "status": check_task_status(job_id),
             }
             for job_id, future in jobs.items()
         ]
