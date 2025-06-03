@@ -13,6 +13,8 @@ app = FastAPI(title="Task Manager")
 # thread pool
 executor = ThreadPoolExecutor(max_workers=1)
 jobs: dict[str, Future] = {}  # job_id -> future
+# upload directory
+UPLOAD_DIR = "uploads"
 
 
 # this is the request body for the POST /tasks endpoint
@@ -43,11 +45,10 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
     upload a file to the server and run the task.
     """
     try:
-        upload_dir = "uploads"
-        if not os.path.exists(upload_dir):
-            os.makedirs(upload_dir, exist_ok=True)
+        if not os.path.exists(UPLOAD_DIR):
+            os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-        file_path = os.path.join(upload_dir, file.filename)
+        file_path = os.path.join(UPLOAD_DIR, file.filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
@@ -82,7 +83,6 @@ def get_task_status(job_id: str) -> dict:
     return {
         "job_id": job_id,
         "done": future.done(),
-        "cmd_done": future.result() if future.done() else None,
     }
 
 
@@ -96,7 +96,6 @@ def list_jobs() -> dict:
             {
                 "job_id": job_id,
                 "done": future.done(),
-                "cmd_done": future.result() if future.done() else None,
             }
             for job_id, future in jobs.items()
         ]
@@ -108,13 +107,12 @@ def list_uploaded_files() -> dict:
     """
     list all uploaded files.
     """
-    upload_dir = "uploads"
-    if not os.path.exists(upload_dir):
+    if not os.path.exists(UPLOAD_DIR):
         return {"files": []}
 
     files = []
-    for filename in os.listdir(upload_dir):
-        file_path = os.path.join(upload_dir, filename)
+    for filename in os.listdir(UPLOAD_DIR):
+        file_path = os.path.join(UPLOAD_DIR, filename)
         if os.path.isfile(file_path):
             files.append(
                 {
