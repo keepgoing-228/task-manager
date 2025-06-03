@@ -1,4 +1,5 @@
 import sys
+import time
 
 # check if the file path is provided
 if len(sys.argv) != 2:
@@ -15,6 +16,7 @@ try:
         # read line by line and print
         for line in f:
             print(line.strip())
+            time.sleep(0.5)
 except FileNotFoundError:
     print(f"Error: File not found: {file_path}")
 except Exception as e:
