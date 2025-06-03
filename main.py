@@ -37,10 +37,10 @@ def run_task(file_path: str) -> str:
     return file_path
 
 
-@app.post("/tasks/upload", status_code=202)
-def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
+@app.post("/tasks/", status_code=202)
+def upload_and_run(file: UploadFile = File(...)) -> dict:
     """
-    upload a file to the server.
+    upload a file to the server and run the task.
     """
     try:
         upload_dir = "uploads"
@@ -53,25 +53,22 @@ def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
 
         file_size = os.path.getsize(file_path)
 
-        return FileUploadResponse(
-            message=f"File '{file.filename}' uploaded successfully",
-            filename=file.filename,
-            file_path=file_path,
-            file_size=file_size,
-        )
+        # submit the task
+        job_id = str(uuid.uuid4())
+        future = executor.submit(run_task, file_path)
+        jobs[job_id] = future
+
+        return {
+            "message": f"File '{file.filename}' uploaded and task started successfully",
+            "filename": file.filename,
+            "file_path": file_path,
+            "file_size": file_size,
+            "job_id": job_id,
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
-
-
-@app.post("/tasks/", status_code=202)  # 202 means accepted, the task is being processed
-def add_task(request: TaskRequest) -> dict:
-    """
-    add a task to the thread pool.
-    """
-    job_id = str(uuid.uuid4())
-    future = executor.submit(run_task, request.file_path)
-    jobs[job_id] = future
-    return {"job_id": job_id, "file_path": request.file_path}
+        raise HTTPException(
+            status_code=500, detail=f"File upload or task start failed: {str(e)}"
+        )
 
 
 @app.get("/tasks/{job_id}")
