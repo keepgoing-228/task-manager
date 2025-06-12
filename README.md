@@ -15,3 +15,9 @@ This project is mainly I/O-bound, like file upload and command execution. Also, 
   ThreadPoolExecutor creates multiple threads within a single process, resource sharing, and smaller overhead for I/O-bound tasks.
 - Less code:
   No need to handle the complexity of data serialization, cross-process communication, etc.
+
+## how to run the project
+
+```bash
+uv run fastapi dev
+```
