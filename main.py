@@ -29,7 +29,7 @@ class FileUploadResponse(BaseModel):
     file_size: int
 
 
-def run_task(file_path: str) -> str:
+def run_reading_txt_task(file_path: str) -> str:
     """
     execute a single command.
     """
@@ -63,6 +63,7 @@ def check_task_status(job_id: str) -> str:
 def upload_and_run(file: UploadFile = File(...)) -> dict:
     """
     upload a file to the server and run the task.
+    It will return message, filename, file_path, file_size, job_id.
     """
     try:
         if not os.path.exists(UPLOAD_DIR):
@@ -76,7 +77,7 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
 
         # submit the task
         job_id = str(uuid.uuid4())
-        future = executor.submit(run_task, file_path)
+        future = executor.submit(run_reading_txt_task, file_path)
         jobs[job_id] = future
 
         return {
@@ -96,6 +97,7 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
 def get_task_status(job_id: str) -> dict:
     """
     get the status of a task.
+    It will return job_id and status.
     """
     return {"job_id": job_id, "status": check_task_status(job_id)}
 
