@@ -11,3 +11,6 @@ wheels/
 
 # upload files
 uploads/
+
+# test files
+test.py

@@ -5,9 +5,9 @@ import time
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from pydantic import BaseModel
 
 # FastAPI app
 app = FastAPI(title="Task Manager")
@@ -17,7 +17,6 @@ app = FastAPI(title="Task Manager")
 class JobInfo:
     future: Future
     filename: str
-    file_path: str
     file_size: int
 
 
@@ -25,27 +24,26 @@ class JobInfo:
 executor = ThreadPoolExecutor(max_workers=1)
 jobs: dict[str, JobInfo] = {}  # job_id -> JobInfo
 # upload directory
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = Path("uploads")
 
 
-# this is the request body for the POST /tasks endpoint
-class TaskRequest(BaseModel):
-    file_path: str
-
-
-class FileUploadResponse(BaseModel):
-    message: str
-    filename: str
-    file_path: str
-    file_size: int
-
-
-def run_reading_txt_task(file_path: str) -> str:
+def run_reading_txt_task(file_path: Path) -> Path:
     """
     execute a single command.
     """
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path}")
     subprocess.run(f"python read_txt.py {file_path}", shell=True)
+    # cmd = "/home/wesley/GitHub/ASRtranslate/.venv/bin/python -m asrtranslate {} -l {}".split(" ")
+    # subprocess.run(
+    #     [
+    #         "python",
+    #         "-m",
+    #         "asrtranslate",
+    #         "   r  r",
+    #         "-l",
+    #     ],
+    #     shell=True,
+    # )
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {file_path}")
     return file_path
 
@@ -73,7 +71,7 @@ def check_task_status(job_id: str) -> str:
     return "pending"
 
 
-@app.post("/tasks/", status_code=202)
+@app.post("/tasks/", status_code=202) #TODO
 def upload_and_run(file: UploadFile = File(...)) -> dict:
     """
     upload a file to the server and run the task.
@@ -83,7 +81,9 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
         if not os.path.exists(UPLOAD_DIR):
             os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        assert file.filename
+
+        file_path = UPLOAD_DIR / file.filename
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
@@ -91,11 +91,9 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
 
         # submit the task
         job_id = str(uuid.uuid4())
-        future = executor.submit(run_reading_txt_task, file_path)
         jobs[job_id] = JobInfo(
-            future=future,
-            filename=file.filename,
-            file_path=file_path,
+            future=executor.submit(run_reading_txt_task, file_path),
+            filename=file.filename,  # pyright: ignore[reportArgumentType]
             file_size=file_size,
         )
 
@@ -103,7 +101,6 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
             "message": f"File '{file.filename}' uploaded and task started successfully",
             "job_id": job_id,
             "filename": file.filename,
-            "file_path": file_path,
             "file_size": file_size,
         }
     except Exception as e:
@@ -126,7 +123,6 @@ def get_task_status(job_id: str) -> dict:
         "job_id": job_id,
         "status": check_task_status(job_id),
         "filename": job_info.filename,
-        "file_path": job_info.file_path,
         "file_size": job_info.file_size,
     }
 
@@ -142,7 +138,6 @@ def list_jobs() -> dict:
                 "job_id": job_id,
                 "status": check_task_status(job_id),
                 "filename": job_info.filename,
-                "file_path": job_info.file_path,
                 "file_size": job_info.file_size,
             }
             for job_id, job_info in jobs.items()
@@ -155,19 +150,17 @@ def list_uploaded_files() -> dict:
     """
     list all uploaded files.
     """
-    if not os.path.exists(UPLOAD_DIR):
+    if not UPLOAD_DIR.exists():
         return {"files": []}
 
     files = []
-    for filename in os.listdir(UPLOAD_DIR):
-        file_path = os.path.join(UPLOAD_DIR, filename)
-        if os.path.isfile(file_path):
+    for entry in UPLOAD_DIR.iterdir():
+        if entry.is_file():
             files.append(
                 {
-                    "filename": filename,
-                    "file_path": file_path,
-                    "file_size": os.path.getsize(file_path),
-                    "modified_time": time.ctime(os.path.getmtime(file_path)),
+                    "filename": entry.name,
+                    "file_size": entry.stat().st_size,
+                    "modified_time": entry.stat().st_mtime,
                 }
             )
 
