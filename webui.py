@@ -21,18 +21,29 @@ def handle_language_selection(selected):
     return selected
 
 
-def handle_upload(file_path):
+def handle_upload(file_path, language):
+    if "ALL" in language:
+        language.remove("ALL")
+
+    if not language:
+        return ["Please select at least one language", gr.Tabs(selected=0)]
+
+    results = []
     try:
         with open(file_path, "rb") as f:
-            files = {"file": f}
-            response = requests.post("http://localhost:3030/tasks/", files=files)
-            response.raise_for_status()  # Raise an exception for bad status codes
-            result_json = response.json()
-            return [result_json["message"], gr.Tabs(selected=1)]
+            for lang in language:
+                files = {"file": f}
+
+                response = requests.post(f"http://localhost:3030/tasks/{lang}", files=files)
+                response.raise_for_status()
+                result_json = response.json()
+                results.append(result_json["message"])
+
+        return ["\n\n".join(results), gr.Tabs(selected=1)]
     except requests.exceptions.RequestException as e:
-        return f"Upload failed: {str(e)}"
+        return [f"Upload failed: {str(e)}", gr.Tabs(selected=0)]
     except Exception as e:
-        return f"Error occurred: {str(e)}"
+        return [f"Error occurred: {str(e)}", gr.Tabs(selected=0)]
 
 
 def fetch_tasks():
@@ -49,6 +60,7 @@ def fetch_tasks():
                     job_info = f"Job ID: {job['job_id']}\n"
                     job_info += f"Status: {job['status']}\n"
                     job_info += f"File: {job['filename']}\n"
+                    job_info += f"Language: {job['language']}\n"
                     job_info += "-" * 40 + "\n"
                     jobs_info.append(job_info)
             if has_pending_jobs:
@@ -121,6 +133,7 @@ with gr.Blocks(
                     # "German",
                 ],
                 label="",
+                value=["Traditional Chinese"],
                 interactive=True,
             )
 
@@ -153,7 +166,7 @@ with gr.Blocks(
 
     upload_button.click(
         fn=handle_upload,
-        inputs=[file_input],
+        inputs=[file_input, language_dropdown],
         outputs=[process_textbox, tabs],
     ).then(
         fn=fetch_tasks,
