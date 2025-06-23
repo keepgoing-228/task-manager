@@ -18,6 +18,7 @@ class JobInfo:
     future: Future
     filename: str
     file_size: int
+    language: str
 
 
 # thread pool
@@ -27,12 +28,12 @@ jobs: dict[str, JobInfo] = {}  # job_id -> JobInfo
 UPLOAD_DIR = Path("uploads")
 
 
-def run_reading_txt_task(file_path: Path) -> Path:
+def run_reading_txt_task(file_path: Path, language: str = "english") -> Path:
     """
     execute a single command.
     """
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path}")
-    subprocess.run(f"python read_txt.py {file_path}", shell=True)
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path} with language: {language}")
+    subprocess.run(f"python read_txt.py {file_path} {language}", shell=True)
     # cmd = "/home/wesley/GitHub/ASRtranslate/.venv/bin/python -m asrtranslate {} -l {}".split(" ")
     # subprocess.run(
     #     [
@@ -71,11 +72,11 @@ def check_task_status(job_id: str) -> str:
     return "pending"
 
 
-@app.post("/tasks/", status_code=202) #TODO
-def upload_and_run(file: UploadFile = File(...)) -> dict:
+@app.post("/tasks/{language}")
+def upload_and_run(language: str, file: UploadFile = File(...)) -> dict:
     """
-    upload a file to the server and run the task.
-    It will return message, filename, file_path, file_size, job_id.
+    upload a file to the server and run the task with specified language.
+    It will return message, filename, file_path, file_size, job_id, language.
     """
     try:
         if not os.path.exists(UPLOAD_DIR):
@@ -92,16 +93,18 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
         # submit the task
         job_id = str(uuid.uuid4())
         jobs[job_id] = JobInfo(
-            future=executor.submit(run_reading_txt_task, file_path),
+            future=executor.submit(run_reading_txt_task, file_path, language),
             filename=file.filename,  # pyright: ignore[reportArgumentType]
             file_size=file_size,
+            language=language,
         )
 
         return {
-            "message": f"File '{file.filename}' uploaded and task started successfully",
+            "message": f"File '{file.filename}' uploaded and task started successfully with language: {language}",
             "job_id": job_id,
             "filename": file.filename,
             "file_size": file_size,
+            "language": language,
         }
     except Exception as e:
         raise HTTPException(
@@ -109,7 +112,7 @@ def upload_and_run(file: UploadFile = File(...)) -> dict:
         )
 
 
-@app.get("/tasks/{job_id}")
+@app.get("/tasks/status/{job_id}")
 def get_task_status(job_id: str) -> dict:
     """
     get the status of a task.
@@ -124,6 +127,7 @@ def get_task_status(job_id: str) -> dict:
         "status": check_task_status(job_id),
         "filename": job_info.filename,
         "file_size": job_info.file_size,
+        "language": job_info.language,
     }
 
 
@@ -139,6 +143,7 @@ def list_jobs() -> dict:
                 "status": check_task_status(job_id),
                 "filename": job_info.filename,
                 "file_size": job_info.file_size,
+                "language": job_info.language,
             }
             for job_id, job_info in jobs.items()
         ]
