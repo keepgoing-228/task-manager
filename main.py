@@ -33,7 +33,8 @@ def run_reading_txt_task(file_path: Path, language: str = "english") -> Path:
     execute a single command.
     """
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path} with language: {language}")
-    subprocess.run(f"python read_txt.py {file_path} {language}", shell=True)
+    subprocess.run(["python", "read_txt.py", f"{file_path}", f"{language}"])
+    # subprocess.run(f"python read_txt.py {file_path} {language}", shell=True)
     # cmd = "/home/wesley/GitHub/ASRtranslate/.venv/bin/python -m asrtranslate {} -l {}".split(" ")
     # subprocess.run(
     #     [
@@ -43,7 +44,6 @@ def run_reading_txt_task(file_path: Path, language: str = "english") -> Path:
     #         "   r  r",
     #         "-l",
     #     ],
-    #     shell=True,
     # )
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {file_path}")
     return file_path
