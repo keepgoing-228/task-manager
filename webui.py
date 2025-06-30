@@ -29,16 +29,17 @@ def handle_upload(file_path, language):
 
     results = []
     try:
-        with open(file_path, "rb") as f:
-            for lang in language:
-                files = {"file": f}
+        lang_str = "_".join(language)
 
-                response = requests.post(
-                    f"http://localhost:3030/tasks/{lang}", files=files
-                )
-                response.raise_for_status()
-                result_json = response.json()
-                results.append(result_json["message"])
+        with open(file_path, "rb") as f:
+            files = {"file": f}
+
+            response = requests.post(
+                f"http://localhost:3030/tasks/{lang_str}", files=files
+            )
+            response.raise_for_status()
+            result_json = response.json()
+            results.append(result_json["message"])
 
         return ["\n\n".join(results), gr.Tabs(selected=1)]
     except requests.exceptions.RequestException as e:

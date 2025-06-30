@@ -13,8 +13,8 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 # FastAPI app
 app = FastAPI(title="Task Manager")
 
-# upload directory
-UPLOAD_DIR = Path("/home/wesley/GitHub/ASRtranslate/uploads")
+WORK_DIR = Path("/home/wesley/GitHub/ASRtranslate")
+UPLOAD_DIR = WORK_DIR / "uploads"
 
 
 @dataclass
@@ -65,24 +65,24 @@ executor = ThreadPoolExecutor(max_workers=1)
 jobs: dict[str, JobInfo] = {}  # job_id -> JobInfo
 
 
-def run_reading_txt_task(file_path: Path, language: str = "english") -> Path:
+def run_translation_task(file_path: Path, language: list[str] = ["en"]) -> Path:
     """
     execute a single command.
     """
     print(
         f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path} with language: {language}"
     )
-    p = subprocess.Popen(
-        [
-            "/home/wesley/GitHub/ASRtranslate/.venv/bin/python",
-            "-m",
-            "asrtranslate",
-            f"{file_path}",
-            "-l",
-            f"{language}",
-        ],
-        cwd=Path("/home/wesley/GitHub/ASRtranslate"),
-    )
+
+    cmd = [
+        WORK_DIR / ".venv/bin/python",
+        "-m",
+        "asrtranslate",
+        f"{file_path}",
+    ]
+    for lang in language:
+        cmd.extend(["-l", lang])
+
+    p = subprocess.Popen(cmd, cwd=WORK_DIR)
     print(f"pid: {p.pid}")
     p.wait()
     # while h.poll() is None:
@@ -116,8 +116,8 @@ def check_task_status(job_id: str) -> str:
     return "pending"
 
 
-@app.post("/tasks/{language}")
-def upload_and_run(language: str, file: UploadFile = File(...)) -> dict:
+@app.post("/tasks/{lang_str}")
+def upload_and_run(lang_str: str, file: UploadFile = File(...)) -> dict:
     """
     upload a file to the server and run the task with specified language.
     It will return message, filename, file_path, file_size, job_id, language.
@@ -135,23 +135,25 @@ def upload_and_run(language: str, file: UploadFile = File(...)) -> dict:
         file_size = os.path.getsize(file_path)
 
         # Convert full language name to short code
-        language_code = Language.from_fullname(language)
+        language_code_list = []
+        for lang in lang_str.split("_"):
+            language_code_list.append(Language.from_fullname(lang))
 
         # submit the task
         job_id = str(uuid.uuid4())
         jobs[job_id] = JobInfo(
-            future=executor.submit(run_reading_txt_task, file_path, language_code),
+            future=executor.submit(run_translation_task, file_path, language_code_list),
             filename=file.filename,  # pyright: ignore[reportArgumentType]
             file_size=file_size,
-            language=language,
+            language=lang_str,
         )
 
         return {
-            "message": f"File '{file.filename}' uploaded and task started successfully with language: {language}",
+            "message": f"File '{file.filename}' uploaded and task started successfully with language: {lang_str}",
             "job_id": job_id,
             "filename": file.filename,
             "file_size": file_size,
-            "language": language,
+            "language": lang_str,
         }
     except Exception as e:
         raise HTTPException(
