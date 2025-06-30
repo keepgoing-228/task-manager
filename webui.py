@@ -2,7 +2,6 @@ import gradio as gr
 import requests
 
 
-
 def handle_language_selection(selected):
     all_option = [
         "ALL",
@@ -34,7 +33,9 @@ def handle_upload(file_path, language):
             for lang in language:
                 files = {"file": f}
 
-                response = requests.post(f"http://localhost:3030/tasks/{lang}", files=files)
+                response = requests.post(
+                    f"http://localhost:3030/tasks/{lang}", files=files
+                )
                 response.raise_for_status()
                 result_json = response.json()
                 results.append(result_json["message"])
@@ -109,7 +110,7 @@ with gr.Blocks(
             with gr.Row():
                 file_input = gr.UploadButton(
                     label="Upload file",
-                    file_types=[".txt", ".pdf", ".docx", ".doc"],
+                    file_types=[".txt", ".idml"],
                     file_count="single",
                     interactive=True,
                 )

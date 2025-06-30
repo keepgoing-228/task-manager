@@ -5,12 +5,16 @@ import time
 import uuid
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
 # FastAPI app
 app = FastAPI(title="Task Manager")
+
+# upload directory
+UPLOAD_DIR = Path("/home/wesley/GitHub/ASRtranslate/uploads")
 
 
 @dataclass
@@ -21,30 +25,70 @@ class JobInfo:
     language: str
 
 
+class Language(StrEnum):
+    EN = "en"
+    TW = "tw"
+    CN = "cn"
+    JP = "jp"
+    KO = "ko"
+    DE = "de"
+    FR = "fr"
+    ES = "es"
+
+    __fullname = {
+        EN: "english",
+        TW: "traditional chinese",
+        CN: "simplified chinese",
+        JP: "japanese",
+        KO: "korean",
+        DE: "german",
+        FR: "french",
+        ES: "spanish",
+    }
+
+    def fullname(self) -> str:
+        return self.__fullname[self]
+
+    @classmethod
+    def from_fullname(cls, fullname: str) -> str:
+        """Convert full language name to short code"""
+        fullname_lower = fullname.lower()
+        for code, name in cls.__fullname.items():
+            if name.lower() == fullname_lower:
+                return code
+        # If not found, return the original string
+        return fullname
+
+
 # thread pool
 executor = ThreadPoolExecutor(max_workers=1)
 jobs: dict[str, JobInfo] = {}  # job_id -> JobInfo
-# upload directory
-UPLOAD_DIR = Path("uploads")
 
 
 def run_reading_txt_task(file_path: Path, language: str = "english") -> Path:
     """
     execute a single command.
     """
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path} with language: {language}")
-    subprocess.run(["python", "read_txt.py", f"{file_path}", f"{language}"])
-    # subprocess.run(f"python read_txt.py {file_path} {language}", shell=True)
-    # cmd = "/home/wesley/GitHub/ASRtranslate/.venv/bin/python -m asrtranslate {} -l {}".split(" ")
-    # subprocess.run(
-    #     [
-    #         "python",
-    #         "-m",
-    #         "asrtranslate",
-    #         "   r  r",
-    #         "-l",
-    #     ],
-    # )
+    print(
+        f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path} with language: {language}"
+    )
+    p = subprocess.Popen(
+        [
+            "/home/wesley/GitHub/ASRtranslate/.venv/bin/python",
+            "-m",
+            "asrtranslate",
+            f"{file_path}",
+            "-l",
+            f"{language}",
+        ],
+        cwd=Path("/home/wesley/GitHub/ASRtranslate"),
+    )
+    print(f"pid: {p.pid}")
+    p.wait()
+    # while h.poll() is None:
+    #     if is_stop:
+    #         h.terminate()
+    #     sleep(0.5)
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {file_path}")
     return file_path
 
@@ -90,10 +134,13 @@ def upload_and_run(language: str, file: UploadFile = File(...)) -> dict:
 
         file_size = os.path.getsize(file_path)
 
+        # Convert full language name to short code
+        language_code = Language.from_fullname(language)
+
         # submit the task
         job_id = str(uuid.uuid4())
         jobs[job_id] = JobInfo(
-            future=executor.submit(run_reading_txt_task, file_path, language),
+            future=executor.submit(run_reading_txt_task, file_path, language_code),
             filename=file.filename,  # pyright: ignore[reportArgumentType]
             file_size=file_size,
             language=language,
