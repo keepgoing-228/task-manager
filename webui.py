@@ -1,6 +1,7 @@
 import gradio as gr
 import requests
 import pandas as pd
+from pathlib import Path
 
 
 def handle_language_selection(selected):
@@ -19,6 +20,25 @@ def handle_language_selection(selected):
     if "ALL" not in selected and set(selected) == (set(all_option) - {"ALL"}):
         return []
     return selected
+
+
+def handle_file_selection(files):
+    """Handle file selection and return file info for display"""
+    if files is None or len(files) == 0:
+        return "No file selected"
+
+    file_info = []
+    # single file -> in our case
+    if isinstance(files, str):
+        file_path = Path(files)
+        file_info.append(f"File Name: {file_path.name}")
+    # multiple files
+    else:
+        for file_path in files:
+            path = Path(file_path)
+            file_info.append(f"File Name: {path.name}")
+
+    return "\n".join(file_info)
 
 
 def handle_upload(file_path, language):
@@ -128,6 +148,11 @@ with gr.Blocks(
         with gr.TabItem("Setting", id=0):
             gr.Markdown("### Select file:")
             with gr.Row():
+                selected_file_display = gr.Textbox(
+                    label="",
+                    value="No file selected",
+                    interactive=False,
+                )
                 file_input = gr.UploadButton(
                     label="Upload file",
                     file_types=[".txt", ".idml"],
@@ -176,6 +201,13 @@ with gr.Blocks(
         fn=handle_language_selection,
         inputs=[language_dropdown],
         outputs=[language_dropdown],
+    )
+
+    # Handle file selection
+    file_input.upload(
+        fn=handle_file_selection,
+        inputs=[file_input],
+        outputs=[selected_file_display],
     )
 
     upload_button.click(
