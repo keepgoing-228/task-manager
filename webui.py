@@ -1,5 +1,6 @@
 import gradio as gr
 import requests
+import pandas as pd
 
 
 def handle_language_selection(selected):
@@ -7,8 +8,8 @@ def handle_language_selection(selected):
         "ALL",
         "Traditional Chinese",
         "Simplified Chinese",
-        "Japanese",
-        "Korean",
+        # "Japanese",
+        # "Korean",
         # "Spanish",
         # "French",
         # "German",
@@ -48,36 +49,54 @@ def handle_upload(file_path, language):
         return [f"Error occurred: {str(e)}", gr.Tabs(selected=0)]
 
 
-def fetch_tasks():
+def fetch_tasks_as_dataframe():
+    """Fetch tasks and return as structured data for dataframe display"""
     try:
         response = requests.get("http://localhost:3030/tasks/")
         response.raise_for_status()
         tasks = response.json()
         if tasks and "jobs" in tasks and tasks["jobs"]:
-            jobs_info = []
-            has_pending_jobs = False
+            pending_jobs = []
             for job in tasks["jobs"]:
-                if job["status"] != "done":
-                    has_pending_jobs = True
-                    job_info = f"Job ID: {job['job_id']}\n"
-                    job_info += f"Status: {job['status']}\n"
-                    job_info += f"File: {job['filename']}\n"
-                    job_info += f"Language: {job['language']}\n"
-                    job_info += "-" * 40 + "\n"
-                    jobs_info.append(job_info)
-            if has_pending_jobs:
-                return "\n".join(jobs_info)
-            else:
-                return "All tasks are done"
+                pending_jobs.append(
+                    {
+                        "Job ID": job["job_id"],
+                        "Status": job["status"],
+                        "File": job["filename"],
+                        "Language": job["language"],
+                    }
+                )
+
+            df = pd.DataFrame(pending_jobs)
+            return df
+
         else:
-            return "No tasks available"
+            return pd.DataFrame(
+                [
+                    {
+                        "Status": "No tasks available",
+                        "Job ID": "",
+                        "File": "",
+                        "Language": "",
+                    }
+                ]
+            )
     except Exception as e:
-        return f"Error fetching tasks: {str(e)}"
+        return pd.DataFrame(
+            [
+                {
+                    "Error": f"Error fetching tasks: {str(e)}",
+                    "Job ID": "",
+                    "File": "",
+                    "Language": "",
+                }
+            ]
+        )
 
 
 with gr.Blocks(
-    theme=gr.themes.Default(
-        text_size=gr.themes.sizes.Size(
+    theme=gr.themes.Default(  # type: ignore
+        text_size=gr.themes.sizes.Size(  # type: ignore
             name="text_lg",
             xxs="14px",
             xs="16px",
@@ -115,12 +134,6 @@ with gr.Blocks(
                     file_count="single",
                     interactive=True,
                 )
-                # file_input = gr.Textbox(
-                #     label="",
-                #     value="/home/tim/Downloads/1.txt",
-                #     placeholder="Enter your file address here, e.g. /home/tim/Downloads/1.txt",
-                #     interactive=True,
-                # )
 
             gr.Markdown("### Select language:")
             language_dropdown = gr.CheckboxGroup(
@@ -128,8 +141,8 @@ with gr.Blocks(
                     "ALL",
                     "Traditional Chinese",
                     "Simplified Chinese",
-                    "Japanese",
-                    "Korean",
+                    # "Japanese",
+                    # "Korean",
                     # "Spanish",
                     # "French",
                     # "German",
@@ -143,20 +156,19 @@ with gr.Blocks(
             email_input = gr.Textbox(label="", placeholder="Enter your email here")
 
         with gr.TabItem("Monitor", id=1):
-            gr.Markdown("### Process:")
-            process_textbox = gr.Textbox(
-                label="", value="None is processing...", interactive=False
-            )
-
-            gr.Markdown("### Next:")
-            next_textbox = gr.TextArea(
-                label="",
-                value="None will be next",
+            process_text = gr.Textbox(
+                label="Process Status",
+                value="Ready to process files...",
                 interactive=False,
-                lines=5,
+                visible=False,
+            )
+            gr.Markdown("### Task Table:")
+            dataframe = gr.Dataframe(
+                value=fetch_tasks_as_dataframe(),
+                interactive=False,
+                wrap=True,
             )
 
-            # Add refresh button
             refresh_button = gr.Button("Refresh Tasks")
 
     # Logic to update preview and handle events
@@ -169,17 +181,17 @@ with gr.Blocks(
     upload_button.click(
         fn=handle_upload,
         inputs=[file_input, language_dropdown],
-        outputs=[process_textbox, tabs],
+        outputs=[process_text, tabs],
     ).then(
-        fn=fetch_tasks,
+        fn=fetch_tasks_as_dataframe,
         inputs=[],
-        outputs=[next_textbox],
+        outputs=[dataframe],
     )
 
     refresh_button.click(
-        fn=fetch_tasks,
+        fn=fetch_tasks_as_dataframe,
         inputs=[],
-        outputs=[next_textbox],
+        outputs=[dataframe],
     )
 
 demo.launch(server_name="0.0.0.0")
