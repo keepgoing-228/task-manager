@@ -41,7 +41,7 @@ def handle_file_selection(files):
     return "\n".join(file_info)
 
 
-def handle_upload(file_path, language):
+def handle_start(file_path, language):
     if "ALL" in language:
         language.remove("ALL")
 
@@ -50,7 +50,7 @@ def handle_upload(file_path, language):
 
     results = []
     try:
-        lang_str = "_".join(language)
+        lang_str = "+".join(language)
 
         with open(file_path, "rb") as f:
             files = {"file": f}
@@ -114,6 +114,7 @@ def fetch_tasks_as_dataframe():
         )
 
 
+############################### GUI ##################################
 with gr.Blocks(
     theme=gr.themes.Default(  # type: ignore
         text_size=gr.themes.sizes.Size(  # type: ignore
@@ -139,8 +140,8 @@ with gr.Blocks(
             """
             gr.HTML(html)
         with gr.Column(scale=1):
-            upload_button = gr.Button(
-                "Upload file", elem_id="upload-btn", scale=2, variant="primary"
+            start_button = gr.Button(
+                "Start Translation", elem_id="start-btn", scale=2, variant="primary"
             )
 
     # Tabs for Setting, Theme, and Result
@@ -210,8 +211,8 @@ with gr.Blocks(
         outputs=[selected_file_display],
     )
 
-    upload_button.click(
-        fn=handle_upload,
+    start_button.click(
+        fn=handle_start,
         inputs=[file_input, language_dropdown],
         outputs=[process_text, tabs],
     ).then(

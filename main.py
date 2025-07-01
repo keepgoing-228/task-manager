@@ -23,6 +23,7 @@ class JobInfo:
     filename: str
     file_size: int
     language: str
+    # language_list: list[dict[str(language_name), str(status)]]
 
 
 class Language(StrEnum):
@@ -65,7 +66,7 @@ executor = ThreadPoolExecutor(max_workers=1)
 jobs: dict[str, JobInfo] = {}  # job_id -> JobInfo
 
 
-def run_translation_task(file_path: Path, language: list[str] = ["en"]) -> Path:
+def run_translation_task(file_path: Path, language: list[str] = ["en"]):
     """
     execute a single command.
     """
@@ -73,24 +74,29 @@ def run_translation_task(file_path: Path, language: list[str] = ["en"]) -> Path:
         f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path} with language: {language}"
     )
 
-    cmd = [
-        WORK_DIR / ".venv/bin/python",
-        "-m",
-        "asrtranslate",
-        f"{file_path}",
-    ]
     for lang in language:
-        cmd.extend(["-l", lang])
+        cmd = [
+            WORK_DIR / ".venv/bin/python",
+            "-m",
+            "asrtranslate",
+            f"{file_path}",
+            "-l",
+            f"{lang}",
+        ]
 
-    p = subprocess.Popen(cmd, cwd=WORK_DIR)
-    print(f"pid: {p.pid}")
-    p.wait()
-    # while h.poll() is None:
-    #     if is_stop:
-    #         h.terminate()
-    #     sleep(0.5)
+        p = subprocess.Popen(cmd, cwd=WORK_DIR)
+        print(f"pid: {p.pid}")
+
+        return_code = p.wait()
+        if return_code != 0:
+            raise Exception(f"Translation failed with return code: {return_code}")
+
+        ## TODO: add a way to stop the task
+        # while p.poll() is None:
+        #     if is_stop:
+        #         p.terminate()
+        #     sleep(0.5)
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {file_path}")
-    return file_path
 
 
 def check_task_status(job_id: str) -> str:
@@ -136,7 +142,7 @@ def upload_and_run(lang_str: str, file: UploadFile = File(...)) -> dict:
 
         # Convert full language name to short code
         language_code_list = []
-        for lang in lang_str.split("_"):
+        for lang in lang_str.split("+"):
             language_code_list.append(Language.from_fullname(lang))
 
         # submit the task
