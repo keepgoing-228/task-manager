@@ -9,12 +9,17 @@ from enum import StrEnum
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-
-# FastAPI app
-app = FastAPI(title="Task Manager")
+from fastapi.staticfiles import StaticFiles
 
 WORK_DIR = Path("/home/wesley/GitHub/ASRtranslate")
 UPLOAD_DIR = WORK_DIR / "uploads"
+RESULT_DIR = WORK_DIR / "results"
+
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+RESULT_DIR.mkdir(parents=True, exist_ok=True)
+
+app = FastAPI(title="Task Manager")
+app.mount("/results", StaticFiles(directory=RESULT_DIR), name="results")
 
 
 @dataclass
@@ -66,12 +71,12 @@ executor = ThreadPoolExecutor(max_workers=1)
 jobs: dict[str, JobInfo] = {}  # job_id -> JobInfo
 
 
-def run_translation_task(file_path: Path, language: list[str] = ["en"]):
+def run_translation_task(original_file_path: Path, language: list[str] = ["en"]):
     """
     execute a single command.
     """
     print(
-        f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {file_path} with language: {language}"
+        f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {original_file_path} with language: {language}"
     )
 
     for lang in language:
@@ -79,7 +84,9 @@ def run_translation_task(file_path: Path, language: list[str] = ["en"]):
             WORK_DIR / ".venv/bin/python",
             "-m",
             "asrtranslate",
-            f"{file_path}",
+            f"{original_file_path}",
+            "-o",
+            f"{RESULT_DIR}",
             "-l",
             f"{lang}",
         ]
@@ -96,7 +103,7 @@ def run_translation_task(file_path: Path, language: list[str] = ["en"]):
         #     if is_stop:
         #         p.terminate()
         #     sleep(0.5)
-    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {file_path}")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {original_file_path}")
 
 
 def check_task_status(job_id: str) -> str:
@@ -129,16 +136,13 @@ def upload_and_run(lang_str: str, file: UploadFile = File(...)) -> dict:
     It will return message, filename, file_path, file_size, job_id, language.
     """
     try:
-        if not os.path.exists(UPLOAD_DIR):
-            os.makedirs(UPLOAD_DIR, exist_ok=True)
-
         assert file.filename
 
-        file_path = UPLOAD_DIR / file.filename
-        with open(file_path, "wb") as buffer:
+        original_file_path = UPLOAD_DIR / file.filename
+        with open(original_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        file_size = os.path.getsize(file_path)
+        file_size = os.path.getsize(original_file_path)
 
         # Convert full language name to short code
         language_code_list = []
@@ -148,7 +152,9 @@ def upload_and_run(lang_str: str, file: UploadFile = File(...)) -> dict:
         # submit the task
         job_id = str(uuid.uuid4())
         jobs[job_id] = JobInfo(
-            future=executor.submit(run_translation_task, file_path, language_code_list),
+            future=executor.submit(
+                run_translation_task, original_file_path, language_code_list
+            ),
             filename=file.filename,  # pyright: ignore[reportArgumentType]
             file_size=file_size,
             language=lang_str,
