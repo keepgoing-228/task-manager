@@ -7,9 +7,12 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+import urllib.parse
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Form
 from fastapi.staticfiles import StaticFiles
+
+from smtp_email import EmailSender
 
 WORK_DIR = Path("/home/wesley/GitHub/ASRtranslate")
 UPLOAD_DIR = WORK_DIR / "uploads"
@@ -21,6 +24,11 @@ RESULT_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="Task Manager")
 app.mount("/results", StaticFiles(directory=RESULT_DIR), name="results")
 
+# FastAPI configuration
+FASTAPI_SERVER = "192.168.40.70"
+FASTAPI_PORT = 3030
+FASTAPI_SENDER = "r10631039@g.ntu.edu.tw"
+
 
 @dataclass
 class JobInfo:
@@ -28,6 +36,7 @@ class JobInfo:
     filename: str
     file_size: int
     language: str
+    email: str | None = None  # 新增 email 欄位
     # language_list: list[dict[str(language_name), str(status)]]
 
 
@@ -71,13 +80,17 @@ executor = ThreadPoolExecutor(max_workers=1)
 jobs: dict[str, JobInfo] = {}  # job_id -> JobInfo
 
 
-def run_translation_task(original_file_path: Path, language: list[str] = ["en"]):
+def run_translation_task(
+    original_file_path: Path, language: list[str] = ["en"], email: str | None = None
+):
     """
     execute a single command.
     """
     print(
         f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running: {original_file_path} with language: {language}"
     )
+
+    generated_files = []
 
     for lang in language:
         cmd = [
@@ -98,12 +111,81 @@ def run_translation_task(original_file_path: Path, language: list[str] = ["en"])
         if return_code != 0:
             raise Exception(f"Translation failed with return code: {return_code}")
 
+        # check if the generated file exists
+        # TODO: not sync with the translation process
+        original_name = original_file_path.stem
+        generated_file = RESULT_DIR / f"{original_name}-{lang}.idml"
+        if generated_file.exists():
+            generated_files.append(generated_file)
+
         ## TODO: add a way to stop the task
         # while p.poll() is None:
         #     if is_stop:
         #         p.terminate()
         #     sleep(0.5)
+
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Finished: {original_file_path}")
+
+    if email and generated_files:
+        send_completion_email(email, original_file_path.name, generated_files, language)
+
+
+def send_completion_email(
+    email: str,
+    original_filename: str,
+    generated_files: list[Path],
+    languages: list[str],
+):
+    """
+    send email notification when the task is completed
+    """
+    try:
+        email_sender = EmailSender()
+
+        # create download links
+        download_links = []
+        for file_path in generated_files:
+            filename = file_path.name
+            download_url = f"http://{FASTAPI_SERVER}:{FASTAPI_PORT}/results/{urllib.parse.quote(filename)}"
+            download_links.append(download_url)
+
+        # create email content
+        subject = f"ASRtranslate 翻譯完成 - {original_filename}"
+
+        message = f"""
+您的檔案翻譯已完成！
+
+原始檔案: {original_filename}
+翻譯語言: {', '.join(languages)}
+
+下載連結:
+{"\n".join(download_links)}
+
+請點擊上方連結下載翻譯後的檔案。
+
+---
+ASRtranslate,
+ASRock AI Team
+        """.strip()
+
+        success = email_sender.send_email(
+            sender=FASTAPI_SENDER,
+            recipients=[email],
+            subject=subject,
+            message=message,
+            domain="",
+            password=os.getenv("PASSWORD"),
+            use_ntlm=False,
+            include_timestamp=True,
+        )
+
+        if success:
+            print(f"Email notification sent to {email}")
+        else:
+            print(f"Failed to send email notification to {email}")
+
+    except Exception as e:
+        print(f"Error sending email notification: {e}")
 
 
 def check_task_status(job_id: str) -> str:
@@ -130,7 +212,9 @@ def check_task_status(job_id: str) -> str:
 
 
 @app.post("/tasks/{lang_str}")
-def upload_and_run(lang_str: str, file: UploadFile = File(...)) -> dict:
+def upload_and_run(
+    lang_str: str, file: UploadFile = File(...), email: str | None = Form(None)
+) -> dict:
     """
     upload a file to the server and run the task with specified language.
     It will return message, filename, file_path, file_size, job_id, language.
@@ -153,11 +237,12 @@ def upload_and_run(lang_str: str, file: UploadFile = File(...)) -> dict:
         job_id = str(uuid.uuid4())
         jobs[job_id] = JobInfo(
             future=executor.submit(
-                run_translation_task, original_file_path, language_code_list
+                run_translation_task, original_file_path, language_code_list, email
             ),
             filename=file.filename,  # pyright: ignore[reportArgumentType]
             file_size=file_size,
             language=lang_str,
+            email=email,
         )
 
         return {
@@ -166,6 +251,7 @@ def upload_and_run(lang_str: str, file: UploadFile = File(...)) -> dict:
             "filename": file.filename,
             "file_size": file_size,
             "language": lang_str,
+            "email": email,
         }
     except Exception as e:
         raise HTTPException(
@@ -189,6 +275,7 @@ def get_task_status(job_id: str) -> dict:
         "filename": job_info.filename,
         "file_size": job_info.file_size,
         "language": job_info.language,
+        "email": job_info.email,
     }
 
 
@@ -205,6 +292,7 @@ def list_jobs() -> dict:
                 "filename": job_info.filename,
                 "file_size": job_info.file_size,
                 "language": job_info.language,
+                "email": job_info.email,
             }
             for job_id, job_info in jobs.items()
         ]

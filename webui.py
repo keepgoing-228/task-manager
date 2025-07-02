@@ -41,7 +41,7 @@ def handle_file_selection(files):
     return "\n".join(file_info)
 
 
-def handle_start(file_path, language):
+def handle_start(file_path, language, email):
     if "ALL" in language:
         language.remove("ALL")
 
@@ -54,9 +54,12 @@ def handle_start(file_path, language):
 
         with open(file_path, "rb") as f:
             files = {"file": f}
+            data = {}
+            if email and email.strip():  # 只有在有 email 時才加入
+                data["email"] = email.strip()
 
             response = requests.post(
-                f"http://localhost:3030/tasks/{lang_str}", files=files
+                f"http://localhost:3030/tasks/{lang_str}", files=files, data=data
             )
             response.raise_for_status()
             result_json = response.json()
@@ -84,6 +87,7 @@ def fetch_tasks_as_dataframe():
                         "Status": job["status"],
                         "File": job["filename"],
                         "Language": job["language"],
+                        "Email": job.get("email", ""),
                     }
                 )
 
@@ -98,6 +102,7 @@ def fetch_tasks_as_dataframe():
                         "Job ID": "",
                         "File": "",
                         "Language": "",
+                        "Email": "",
                     }
                 ]
             )
@@ -109,6 +114,7 @@ def fetch_tasks_as_dataframe():
                     "Job ID": "",
                     "File": "",
                     "Language": "",
+                    "Email": "",
                 }
             ]
         )
@@ -179,7 +185,11 @@ with gr.Blocks(
             )
 
             gr.Markdown("### Email address:")
-            email_input = gr.Textbox(label="", placeholder="Enter your email here")
+            email_input = gr.Textbox(
+                label="",
+                value="keepdling@gmail.com",
+                placeholder="Enter your email here",
+            )
 
         with gr.TabItem("Monitor", id=1):
             process_text = gr.Textbox(
@@ -213,7 +223,7 @@ with gr.Blocks(
 
     start_button.click(
         fn=handle_start,
-        inputs=[file_input, language_dropdown],
+        inputs=[file_input, language_dropdown, email_input],
         outputs=[process_text, tabs],
     ).then(
         fn=fetch_tasks_as_dataframe,
