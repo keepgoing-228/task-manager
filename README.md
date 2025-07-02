@@ -16,8 +16,63 @@ This project is mainly I/O-bound, like file upload and command execution. Also, 
 - Less code:
   No need to handle the complexity of data serialization, cross-process communication, etc.
 
+## Features
+
+- File upload and translation task management
+- Real-time task status monitoring
+- **Email notification system** - Get notified when translation is complete
+- Web UI for easy interaction
+- RESTful API for programmatic access
+
 ## how to run the project
 
 ```bash
-uv run fastapi dev
+# Run the FastAPI server
+./launch_fastapi.sh
+
+# Run the Gradio web UI (in another terminal)
+uv run python webui.py
+```
+
+## Email Notification Setup
+
+The system now supports automatic email notifications when translation is complete. See [EMAIL_SETUP.md](EMAIL_SETUP.md) for detailed setup instructions.
+
+### Quick Setup
+
+1. Set environment variable:
+   ```bash
+   export EMAIL_PASSWORD=your_email_password
+   ```
+
+2. Update email settings in `main.py`:
+   ```python
+   EMAIL_SERVER = "your_server_ip"
+   EMAIL_PORT = 3030
+   EMAIL_SENDER = "your_email@gmail.com"
+   ```
+
+3. Use the web UI or API with email parameter to receive notifications.
+
+## API Usage
+
+### Upload and translate with email notification
+
+```bash
+curl -X POST \
+  -F "file=@your_file.idml" \
+  -F "email=user@example.com" \
+  http://localhost:3030/tasks/Simplified+Chinese
+```
+
+### Check task status
+
+```bash
+curl http://localhost:3030/tasks/status/{job_id}
+```
+
+### List all tasks
+
+```bash
+curl http://localhost:3030/tasks/
 ```

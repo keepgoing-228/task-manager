@@ -27,7 +27,7 @@ app.mount("/results", StaticFiles(directory=RESULT_DIR), name="results")
 # FastAPI configuration
 FASTAPI_SERVER = "192.168.40.70"
 FASTAPI_PORT = 3030
-FASTAPI_SENDER = "r10631039@g.ntu.edu.tw"
+EMAIL_SENDER_ACCOUNT = "r10631039@g.ntu.edu.tw"
 
 
 @dataclass
@@ -169,7 +169,7 @@ ASRock AI Team
         """.strip()
 
         success = email_sender.send_email(
-            sender=FASTAPI_SENDER,
+            sender=EMAIL_SENDER_ACCOUNT,
             recipients=[email],
             subject=subject,
             message=message,
