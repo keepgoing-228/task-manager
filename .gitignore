@@ -13,7 +13,13 @@ wheels/
 uploads/
 
 # test files
-test.py
+tests/
 
 # result files
 results/
+
+# env
+.env
+
+# email config
+email_config.json
