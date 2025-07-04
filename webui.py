@@ -55,7 +55,7 @@ def handle_start(file_path, language, email):
         with open(file_path, "rb") as f:
             files = {"file": f}
             data = {}
-            if email and email.strip():  # 只有在有 email 時才加入
+            if email and email.strip():
                 data["email"] = email.strip()
 
             response = requests.post(
@@ -140,8 +140,8 @@ with gr.Blocks(
         with gr.Column(scale=3):
             html = """
                 <div>
-                    <h1 style="padding-left: 19px"> ASRtranslate</h1>
-                    <p style="padding-left: 19px">powered by AI Lab</p>
+                    <h1 style="padding-left: 19px"> RagLingo Agent</h1>
+                    <p style="padding-left: 19px">powered by ASRock AI Lab</p>
                 </div>
             """
             gr.HTML(html)

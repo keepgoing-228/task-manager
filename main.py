@@ -211,13 +211,15 @@ def check_task_status(job_id: str) -> str:
     return "pending"
 
 
-@app.post("/tasks/{lang_str}")
+@app.post(
+    "/tasks/{lang_str}"
+)  # TODO: instead of lang_str of url, use a list of languages in the body
 def upload_and_run(
     lang_str: str, file: UploadFile = File(...), email: str | None = Form(None)
 ) -> dict:
     """
     upload a file to the server and run the task with specified language.
-    It will return message, filename, file_path, file_size, job_id, language.
+    It will return message, filename, file_path, file_size, job_id, language, email.
     """
     try:
         assert file.filename
