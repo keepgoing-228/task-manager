@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from smtp_email import EmailSender
 
-WORK_DIR = Path("/home/wesley/GitHub/ASRtranslate")
+WORK_DIR = Path("/home/sw/GitHub/ASRtranslate")
 UPLOAD_DIR = WORK_DIR / "uploads"
 RESULT_DIR = WORK_DIR / "results"
 
@@ -25,7 +25,7 @@ app = FastAPI(title="Task Manager")
 app.mount("/results", StaticFiles(directory=RESULT_DIR), name="results")
 
 # FastAPI configuration
-FASTAPI_SERVER = "192.168.40.70"
+FASTAPI_SERVER = "10.194.47.212"
 FASTAPI_PORT = 3030
 EMAIL_SENDER_ACCOUNT = "r10631039@g.ntu.edu.tw"
 
@@ -168,15 +168,12 @@ ASRtranslate,
 ASRock AI Team
         """.strip()
 
+        config_json = email_sender.load_config(config_path=WORK_DIR / "mail_config.json")
         success = email_sender.send_email(
-            sender=EMAIL_SENDER_ACCOUNT,
             recipients=[email],
             subject=subject,
             message=message,
-            domain="",
-            password=os.getenv("PASSWORD"),
-            use_ntlm=False,
-            include_timestamp=True,
+            config=config_json
         )
 
         if success:

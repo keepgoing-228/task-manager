@@ -9,8 +9,8 @@ def handle_language_selection(selected):
         "ALL",
         "Traditional Chinese",
         "Simplified Chinese",
-        # "Japanese",
-        # "Korean",
+        "Japanese",
+        "Korean",
         # "Spanish",
         # "French",
         # "German",
@@ -42,10 +42,15 @@ def handle_file_selection(files):
 
 
 def handle_start(file_path, language, email):
+    if not email or not email.strip():
+        gr.Info("Please enter your email address")
+        return ["Please enter your email address", gr.Tabs(selected=0)]
+
     if "ALL" in language:
         language.remove("ALL")
 
     if not language:
+        gr.Info("Please select at least one language")
         return ["Please select at least one language", gr.Tabs(selected=0)]
 
     results = []
@@ -173,8 +178,8 @@ with gr.Blocks(
                     "ALL",
                     "Traditional Chinese",
                     "Simplified Chinese",
-                    # "Japanese",
-                    # "Korean",
+                    "Japanese",
+                    "Korean",
                     # "Spanish",
                     # "French",
                     # "German",
@@ -187,7 +192,7 @@ with gr.Blocks(
             gr.Markdown("### Email address:")
             email_input = gr.Textbox(
                 label="",
-                value="keepdling@gmail.com",
+                value="",
                 placeholder="Enter your email here",
             )
 

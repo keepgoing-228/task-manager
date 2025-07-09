@@ -76,3 +76,17 @@ curl http://localhost:3030/tasks/status/{job_id}
 ```bash
 curl http://localhost:3030/tasks/
 ```
+
+## Email Config
+
+```json
+{
+	"sender": "",
+	"password": "",
+	"smtp_server": "mail.asrock.com.tw",
+	"domain": "",
+	"smtp_port": 587,
+	"use_ntlm": true,
+	"include_timestamp":true
+}
+```
