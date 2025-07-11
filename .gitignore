@@ -22,4 +22,4 @@ results/
 .env
 
 # email config
-email_config.json
+mail_config.json

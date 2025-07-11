@@ -6,43 +6,30 @@ ASRtranslate 系統現在支援在翻譯完成後自動發送 email 通知，包
 
 ## 設定步驟
 
-### 1. 環境變數設定
 
-在 `.env` 檔案中設定 email 密碼：
-
-```bash
-EMAIL_PASSWORD=your_email_password_here
-```
-
-### 2. Email 設定檔 (可選)
-
-可以建立 `email_config.json` 檔案來自訂 email 設定：
+### 1. Email 設定檔 (可選)
+可以建立 `email_config.json` 檔案來自訂 email 設定，這邊須設定 ASRtranslate 專案需要的：
 
 ```json
 {
-    "smtp_server": "smtp.gmail.com",
-    "smtp_port": 587,
-    "sender": "your-email@gmail.com",
-    "recipients": ["recipient@example.com"],
-    "subject": "ASRtranslate 翻譯完成",
-    "message": "您的檔案翻譯已完成，請查看附件。",
-    "domain": "",
-    "password": "",
-    "attachments": [],
-    "use_ntlm": false,
-    "include_timestamp": true
+	"sender": "",
+	"password": "",
+	"smtp_server": "mail.asrock.com.tw",
+	"domain": "",
+	"smtp_port": 587,
+	"use_ntlm": true,
+	"include_timestamp":true
 }
 ```
 
-### 3. 修改 main.py 中的設定
+### 2. 修改 main.py 中的 FastAPI 設定
 
-在 `main.py` 中修改以下設定：
+在 `main.py` 中修改以下設定，這邊須設定 ASRtranslate 專案需要的：
 
 ```python
 # FastAPI configuration
-FASTAPI_SERVER = "192.168.40.70"
+FASTAPI_SERVER = "0.0.0.0"
 FASTAPI_PORT = 3030
-EMAIL_SENDER_ACCOUNT = "your-email@gmail.com"
 ```
 
 ## 使用方法

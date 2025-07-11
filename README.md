@@ -38,21 +38,6 @@ uv run python webui.py
 
 The system now supports automatic email notifications when translation is complete. See [EMAIL_SETUP.md](EMAIL_SETUP.md) for detailed setup instructions.
 
-### Quick Setup
-
-1. Set environment variable:
-   ```bash
-   export EMAIL_PASSWORD=your_email_password
-   ```
-
-2. Update email settings in `main.py`:
-   ```python
-   EMAIL_SERVER = "your_server_ip"
-   EMAIL_PORT = 3030
-   EMAIL_SENDER = "your_email@gmail.com"
-   ```
-
-3. Use the web UI or API with email parameter to receive notifications.
 
 ## API Usage
 
@@ -77,16 +62,8 @@ curl http://localhost:3030/tasks/status/{job_id}
 curl http://localhost:3030/tasks/
 ```
 
-## Email Config
+### List all uploaded files
 
-```json
-{
-	"sender": "",
-	"password": "",
-	"smtp_server": "mail.asrock.com.tw",
-	"domain": "",
-	"smtp_port": 587,
-	"use_ntlm": true,
-	"include_timestamp":true
-}
+```bash
+curl http://localhost:3030/list_files
 ```

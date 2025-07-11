@@ -14,12 +14,14 @@ from fastapi.staticfiles import StaticFiles
 
 from smtp_email import EmailSender
 
-WORK_DIR = Path("/home/sw/GitHub/ASRtranslate")
-UPLOAD_DIR = WORK_DIR / "uploads"
-RESULT_DIR = WORK_DIR / "results"
+ASRTRANSLATE_DIR = Path("/home/sw/GitHub/ASRtranslate")
+UPLOAD_DIR = ASRTRANSLATE_DIR / "uploads"
+RESULT_DIR = ASRTRANSLATE_DIR / "results"
 
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
+
+THIS_DIR = Path(__file__).parent
 
 app = FastAPI(title="Task Manager")
 app.mount("/results", StaticFiles(directory=RESULT_DIR), name="results")
@@ -27,7 +29,6 @@ app.mount("/results", StaticFiles(directory=RESULT_DIR), name="results")
 # FastAPI configuration
 FASTAPI_SERVER = "10.194.47.212"
 FASTAPI_PORT = 3030
-EMAIL_SENDER_ACCOUNT = "r10631039@g.ntu.edu.tw"
 
 
 @dataclass
@@ -36,7 +37,7 @@ class JobInfo:
     filename: str
     file_size: int
     language: str
-    email: str | None = None  # 新增 email 欄位
+    email: str | None = None
     # language_list: list[dict[str(language_name), str(status)]]
 
 
@@ -94,7 +95,7 @@ def run_translation_task(
 
     for lang in language:
         cmd = [
-            WORK_DIR / ".venv/bin/python",
+            ASRTRANSLATE_DIR / ".venv/bin/python",
             "-m",
             "asrtranslate",
             f"{original_file_path}",
@@ -104,7 +105,7 @@ def run_translation_task(
             f"{lang}",
         ]
 
-        p = subprocess.Popen(cmd, cwd=WORK_DIR)
+        p = subprocess.Popen(cmd, cwd=ASRTRANSLATE_DIR)
         print(f"pid: {p.pid}")
 
         return_code = p.wait()
@@ -168,12 +169,11 @@ ASRtranslate,
 ASRock AI Team
         """.strip()
 
-        config_json = email_sender.load_config(config_path=WORK_DIR / "mail_config.json")
+        config_json = email_sender.load_config(
+            config_path=str(THIS_DIR / "mail_config.json")
+        )
         success = email_sender.send_email(
-            recipients=[email],
-            subject=subject,
-            message=message,
-            config=config_json
+            recipients=[email], subject=subject, message=message, config=config_json
         )
 
         if success:
